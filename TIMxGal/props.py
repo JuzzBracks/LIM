@@ -63,7 +63,7 @@ Euclid.n_gals = np.array([0.0144, 0.01077, 0.0081,0.0056]) #little h included in
 #---------------------------------------------------------------------------------------------------------------------
 TIM2 = AttrDict()
 TIM2.det_yield = 1.7 #Percent of detectors that are actually useable. 
-TIM2.time = (100*u.hr).to(u.s)
+TIM2.time = (400*u.hr).to(u.s)
 TIM2.window = True
 TIM2.useshot = True
 TIM2.mirror = 0.5 * u.m
