@@ -63,12 +63,12 @@ Euclid.n_gals = np.array([0.0144, 0.01077, 0.0081,0.0056]) #little h included in
 #---------------------------------------------------------------------------------------------------------------------
 TIM2 = AttrDict()
 TIM2.det_yield = 1.7 #Percent of detectors that are actually useable. 
-TIM2.time = (400*u.hr).to(u.s)
+TIM2.time = (200*u.hr).to(u.s)
 TIM2.window = True
 TIM2.useshot = True
 TIM2.mirror = 0.5 * u.m
-TIM2.Daz = 3 * u.deg
-TIM2.Del = 3 * u.deg
+TIM2.Daz = 1 * u.deg
+TIM2.Del = 1 * u.deg
 TIM2.line = 157.74 * u.micron # Cooksy et al. 1986, [CII]
 
 
@@ -101,7 +101,7 @@ for band in ['SW', 'LW']:
                             #SPACE TIM
 #----------------------------------------------------------------------------------------------------   
 SpaceTIM = AttrDict()
-SpaceTIM.det_yield = 1.6 #Percent of detectors that are actually useable. 
+SpaceTIM.det_yield = 1.6 #Percent of detectors that are actually useable.
 SpaceTIM.time = (1000*u.hr).to(u.s)
 SpaceTIM.window = True
 SpaceTIM.useshot = True
