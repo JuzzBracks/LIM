@@ -27,13 +27,15 @@ TIM.LW = AttrDict()
 
 TIM.SW.min = 240 * u.micron
 TIM.SW.max = 317 * u.micron
-TIM.SW.NEI = 12.41e7 * u.Jy / (u.s ** .5)
+#TIM.SW.NEI = 12.41e7 * u.Jy / (u.s ** .5)
+TIM.SW.NEI = 64.1340007221665 * 1e6 * u.Jy / (u.s ** .5)
 TIM.SW.num_dets = 64 * TIM.det_yield
 TIM.SW.dnu = 4.4 * u.GHz
 
 TIM.LW.min = 317 * u.micron
 TIM.LW.max = 420 * u.micron
-TIM.LW.NEI = 6.81e7 * u.Jy / (u.s ** .5)
+#TIM.LW.NEI = 6.81e7 * u.Jy / (u.s ** .5)
+TIM.LW.NEI = 39.2758090843254 * 1e6 * u.Jy / (u.s ** .5)
 TIM.LW.num_dets = 51 * TIM.det_yield
 TIM.LW.dnu = 3.3 * u.GHz
 
@@ -63,11 +65,16 @@ Euclid.n_gals = np.array([0.0144, 0.01077, 0.0081,0.0056]) #little h included in
 #---------------------------------------------------------------------------------------------------------------------
 TIM2 = AttrDict()
 TIM2.det_yield = 1.7 #Percent of detectors that are actually useable. 
+#TIM2.det_yield = 0.85 #Percent of detectors that are actually useable. 
+
 TIM2.time = (200*u.hr).to(u.s)
 TIM2.window = True
 TIM2.useshot = True
 TIM2.mirror = 0.5 * u.m
+
 TIM2.Daz = 1 * u.deg
+#TIM2.Daz = 0.2 * u.deg
+
 TIM2.Del = 1 * u.deg
 TIM2.line = 157.74 * u.micron # Cooksy et al. 1986, [CII]
 
@@ -77,13 +84,13 @@ TIM2.LW = AttrDict()
 
 TIM2.SW.min = 240 * u.micron
 TIM2.SW.max = 317 * u.micron
-TIM2.SW.NEI = 1191067 * u.Jy / (u.s ** .5)
+TIM2.SW.NEI = 7.949440193069208 * 1e6 * u.Jy / (u.s ** .5)
 TIM2.SW.num_dets = 64 * TIM2.det_yield
 TIM2.SW.dnu = 4.4 * u.GHz
 
 TIM2.LW.min = 317 * u.micron
 TIM2.LW.max = 420 * u.micron
-TIM2.LW.NEI = 2382794 * u.Jy / (u.s ** .5)
+TIM2.LW.NEI = 3.194133716130952 * 1e6 * u.Jy / (u.s ** .5)
 TIM2.LW.num_dets = 51 * TIM2.det_yield
 TIM2.LW.dnu = 3.3 * u.GHz
 
@@ -102,12 +109,20 @@ for band in ['SW', 'LW']:
 #----------------------------------------------------------------------------------------------------   
 SpaceTIM = AttrDict()
 SpaceTIM.det_yield = 1.6 #Percent of detectors that are actually useable.
+#SpaceTIM.det_yield = 0.85 #Percent of detectors that are actually useable.
+
 SpaceTIM.time = (1000*u.hr).to(u.s)
+#SpaceTIM.time = (200*u.hr).to(u.s)
+
 SpaceTIM.window = True
 SpaceTIM.useshot = True
 SpaceTIM.mirror = 0.5 * u.m
 SpaceTIM.Daz = 3 * u.deg
 SpaceTIM.Del = 3 * u.deg
+
+#SpaceTIM.Daz = 0.2 * u.deg
+#SpaceTIM.Del = 1 * u.deg
+
 SpaceTIM.line = 157.74 * u.micron # Cooksy et al. 1986, [CII]
 
 
@@ -116,13 +131,13 @@ SpaceTIM.LW = AttrDict()
 
 SpaceTIM.SW.min = 240 * u.micron
 SpaceTIM.SW.max = 317 * u.micron
-SpaceTIM.SW.NEI = 1191067.084857143 * u.Jy / (u.s ** .5)
+SpaceTIM.SW.NEI = 0.17124185980942827 * 1e6 * u.Jy / (u.s ** .5)
 SpaceTIM.SW.num_dets = 64 * SpaceTIM.det_yield
 SpaceTIM.SW.dnu = 4.4 * u.GHz
 
 SpaceTIM.LW.min = 317 * u.micron
 SpaceTIM.LW.max = 420 * u.micron
-SpaceTIM.LW.NEI = 2382794.141587301 * u.Jy / (u.s ** .5)
+SpaceTIM.LW.NEI = 0.13540261810515875 * 1e6 * u.Jy / (u.s ** .5)
 SpaceTIM.LW.num_dets = 51 * SpaceTIM.det_yield
 SpaceTIM.LW.dnu = 3.3 * u.GHz
 
