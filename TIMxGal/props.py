@@ -29,6 +29,7 @@ TIM.SW.min = 240 * u.micron
 TIM.SW.max = 317 * u.micron
 #TIM.SW.NEI = 12.41e7 * u.Jy / (u.s ** .5)
 TIM.SW.NEI = 64.1340007221665 * 1e6 * u.Jy / (u.s ** .5)
+#TIM.SW.NEI = 1 * u.Jy / (u.s ** .5)
 TIM.SW.num_dets = 64 * TIM.det_yield
 TIM.SW.dnu = 4.4 * u.GHz
 
@@ -36,6 +37,7 @@ TIM.LW.min = 317 * u.micron
 TIM.LW.max = 420 * u.micron
 #TIM.LW.NEI = 6.81e7 * u.Jy / (u.s ** .5)
 TIM.LW.NEI = 39.2758090843254 * 1e6 * u.Jy / (u.s ** .5)
+#TIM.LW.NEI = 1 * u.Jy / (u.s ** .5)
 TIM.LW.num_dets = 51 * TIM.det_yield
 TIM.LW.dnu = 3.3 * u.GHz
 
@@ -64,18 +66,18 @@ Euclid.n_gals = np.array([0.0144, 0.01077, 0.0081,0.0056]) #little h included in
                             #TIM 2
 #---------------------------------------------------------------------------------------------------------------------
 TIM2 = AttrDict()
-TIM2.det_yield = 1.7 #Percent of detectors that are actually useable. 
-#TIM2.det_yield = 0.85 #Percent of detectors that are actually useable. 
+#TIM2.det_yield = 1.7 #Percent of detectors that are actually useable. 
+TIM2.det_yield = 0.85 #Percent of detectors that are actually useable. 
 
 TIM2.time = (200*u.hr).to(u.s)
 TIM2.window = True
 TIM2.useshot = True
 TIM2.mirror = 0.5 * u.m
 
-TIM2.Daz = 1 * u.deg
+TIM2.Daz = np.sqrt(2) * u.deg
 #TIM2.Daz = 0.2 * u.deg
 
-TIM2.Del = 1 * u.deg
+TIM2.Del = np.sqrt(2) * u.deg
 TIM2.line = 157.74 * u.micron # Cooksy et al. 1986, [CII]
 
 
@@ -108,17 +110,17 @@ for band in ['SW', 'LW']:
                             #SPACE TIM
 #----------------------------------------------------------------------------------------------------   
 SpaceTIM = AttrDict()
-SpaceTIM.det_yield = 1.6 #Percent of detectors that are actually useable.
-#SpaceTIM.det_yield = 0.85 #Percent of detectors that are actually useable.
+#SpaceTIM.det_yield = 1.7 #Percent of detectors that are actually useable.
+SpaceTIM.det_yield = 0.85 #Percent of detectors that are actually useable.
 
-SpaceTIM.time = (1000*u.hr).to(u.s)
-#SpaceTIM.time = (200*u.hr).to(u.s)
+#SpaceTIM.time = (1000*u.hr).to(u.s)
+SpaceTIM.time = (200*u.hr).to(u.s)
 
 SpaceTIM.window = True
 SpaceTIM.useshot = True
 SpaceTIM.mirror = 0.5 * u.m
-SpaceTIM.Daz = 3 * u.deg
-SpaceTIM.Del = 3 * u.deg
+SpaceTIM.Daz = np.sqrt(10) * u.deg
+SpaceTIM.Del = np.sqrt(10) * u.deg
 
 #SpaceTIM.Daz = 0.2 * u.deg
 #SpaceTIM.Del = 1 * u.deg
