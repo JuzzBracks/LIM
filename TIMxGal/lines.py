@@ -17,7 +17,7 @@ CII = AttrDict()
 CII.l = 157.74 * u.micron # Cooksy et al. 1986, [CII]
 CII.nu = CII.l.to(u.Hz, equivalencies=u.spectral())
 
-def Inu_proposal(sfrd, z, L0=8.3 * 10**6 * u.Lsun * u.yr / u.Msun, nu_emit=CII.nu):
+def Inu_proposal(sfrd, z, L0=10.1 * 10**6 * u.Lsun * u.yr / u.Msun, nu_emit=CII.nu):
     """
     Calculate the specific intensity of a source at redshift z, using Juzz's proposal formalization.
 

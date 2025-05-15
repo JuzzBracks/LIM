@@ -60,7 +60,8 @@ AstroDeep.n_gals = (np.array([0.005, 0.002, 0.0019713, 0.000836]) / cosmo.h ** 3
 
 Euclid = AttrDict()
 # TIM bins
-Euclid.n_gals = np.array([0.0144, 0.01077, 0.0081,0.0056]) #little h included in these numbers.
+
+Euclid.n_gals = np.array([0.014391114, 0.010868165, 0.0078284155, 0.0060405154]) #little h included in these numbers.
 
 
                             #TIM 2
@@ -69,7 +70,7 @@ TIM2 = AttrDict()
 #TIM2.det_yield = 1.7 #Percent of detectors that are actually useable. 
 TIM2.det_yield = 0.85 #Percent of detectors that are actually useable. 
 
-TIM2.time = (200*u.hr).to(u.s)
+TIM2.time = (24*u.hr).to(u.s)
 TIM2.window = True
 TIM2.useshot = True
 TIM2.mirror = 0.5 * u.m
