@@ -6,7 +6,7 @@
 import numpy as np
 from obj import cosmo
 from astropy import constants as c, units as u
-from lines import CII
+from E_lines import CII
 
 h = cosmo.h
 
