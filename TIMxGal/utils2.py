@@ -3,17 +3,50 @@
 # Copyright (c) 2024 Shubh Agrawal, Justin Bracks
 # All rights reserved.
 
-#from matplotlib import lines
-#from curses import window
 import numpy as np
+import scipy
 from E_lines import CII
 from astropy.cosmology import Planck18 as cosmo
 from astropy import constants as c, units as u
 import camb
 from scipy.interpolate import interp1d
-#from lines import CII
-
+from scipy.special import erf as Erf
 h = cosmo.h
+
+
+def erf_window(ks, kzMin):
+    #erf approximation from Padmanabhan 2023
+    # https://arxiv.org/abs/2212.08077
+    epsilon = 1e-12
+    ks[ks.value == 0] = epsilon*ks.unit
+    vals = 1 - np.sqrt(np.pi)*kzMin/(2*ks) * Erf(ks/kzMin)
+    return vals
+
+def gaussian_window(k, sigma):
+    """
+    Returns the Gaussian window function for a given k-array and smoothing scale sigma.
+    W(k) = exp(-k^2 * sigma^2 / 2)
+    """
+    epsilon = 1e-12
+    k[k.value == 0] = epsilon*k.unit
+    vals = np.exp(-k**2 * sigma**2 / 2)
+    return vals
+
+def luminosity_distance(z):
+    """
+    Returns the luminosity distance at redshift z using the current cosmology.
+
+    Parameters
+    ----------
+    z : float or array-like
+        Redshift(s) at which to compute the luminosity distance.
+
+    Returns
+    -------
+    d_L : astropy.units.Quantity
+        Luminosity distance in Mpc.
+    """
+    return cosmo.luminosity_distance(z)
 
 def l2z(l_obs, l_emit):
     """
@@ -177,7 +210,7 @@ def noise_per_cell(z, nei, num_spax, num_dets, time, dAz, dEl, dnu, nuRest, lilh
     """
 
     dR = dnu2dr(dnu, nuRest, z, lilh)
-    cell_area = area_scan(z, dAz, dEl, lilh) 
+    cell_area = area_scan(z, dAz, dEl, lilh)
     cell_vol = cell_area * dR
     cell_time = time / num_spax * num_dets
     return (nei * np.sqrt(cell_vol / cell_time))** 2 #TODO should this be squared?
@@ -625,6 +658,19 @@ class LIM_survey():
         
         self.num_spax = (AZ * EL / self.zBin.FWHM ** 2).decompose() #TODO: add unit hasattr+checker
 
+    def vVox(self):
+        """
+        Calculate the volume of a single voxel (3D cell) in the survey.
+
+        Returns
+        -------
+        v_vox : astropy.units.Quantity
+            The volume of a single voxel in Mpc^3 (or Mpc^3 h^-3 if little-h units are used).
+        """
+        area = area_scan(self.zBin.zCenter, self.zBin.FWHM, self.zBin.FWHM, self.lilh)
+        los = self.zBin.LoSmin(self.Instrument.dnu, self.lilh)
+        return (area * los).decompose()
+    
     def cell_noise(self, lilh=True):
         """
         Calculate the noise per cell (voxel) in the LIM survey.
@@ -716,6 +762,7 @@ class LIMxGAL():
         """
             calculate the k-modes in the survey.
         """
+    def calculate_k_xyzs(self):
         Dx = self.LIM.zBin.transScale(self.LIM.Az)
         Dy = self.LIM.zBin.transScale(self.LIM.El)
         Dz = self.LIM.zBin.LoSmax()
@@ -727,48 +774,106 @@ class LIMxGAL():
         kx, ky, kz = np.meshgrid(calc_k_modes(Dx, dx), calc_k_modes(Dy, dy), 
                                 calc_k_modes(Dz, dz), indexing='ij')
 
-        self.k_xyzs = np.stack((kx, ky, kz))
+        k_xyzs = np.stack((kx, ky, kz))
+        return k_xyzs
+    
+    def setup_k_modes(self, dlnk=1):
+        k_xyzs = self.calculate_k_xyzs()
 
-        self.k_mags = np.sqrt(np.sum(self.k_xyzs**2, axis=0))
-        self.k_min = np.min(self.k_mags[self.k_mags != 0])
-        self.k_max = np.max(self.k_mags)
-        #self.k_props = np.abs(self.k_xyzs / self.k_mags)
-        self.num_kbins = np.round(num_log_steps(self.k_min, np.max(self.k_max), dlnk)) + 1
+        k_mags = np.sqrt(np.sum(k_xyzs**2, axis=0))
+        del k_xyzs
+        k_min = np.min(k_mags[k_mags != 0])
+        k_max = np.max(k_mags)
+        #self.k_props = np.abs(k_xyzs / self.k_mags)
+        num_kbins = np.round(num_log_steps(k_min, np.max(k_max), dlnk)) + 1
 
-        if self.window == 'Gaussian':
-            #print('Applying Gaussian windowing')
-            sigCoef = np.sqrt(8*np.log(2))
-            #this currently ignores contributions from the galaxy survey to transverse sigma.
-            sPar = dnu2dr(self.LIM.Instrument.dnu, self.LIM.EmissionLine.nu,
-                           self.LIM.zBin.zCenter.value) / sigCoef
-            sPerp = self.LIM.zBin.transScale(self.LIM.zBin.FWHM).value / sigCoef
-            galPar  = self.GAL.specRatio *  sPar
-            #print(f"sPar: {sPar}, sPerp: {sPerp}, galPar: {galPar}")
+        return k_mags, num_kbins
 
-            self.transferCoefs = np.einsum('i,j,k->ijk', 
-                    np.exp((-self.k_xyzs[0][:, 0, 0]**2 * sPerp**2 / 2).value), 
-                    np.exp((-self.k_xyzs[1][0, :, 0]**2 * sPerp**2 / 2).value), 
-                    np.exp((-self.k_xyzs[2][0, 0, :]**2 * (sPar**2 + galPar**2) / 2).value))
+    def setup_transfer_function(self, auto = False): 
+        k_xyzs = self.calculate_k_xyzs()
+
+        kxMin = 2 * np.pi / self.LIM.zBin.transScale(self.LIM.Az)
+        kyMin = 2 * np.pi / self.LIM.zBin.transScale(self.LIM.El)
+        kzMin = 2 * np.pi / self.LIM.zBin.LoSmax()
+
+        Lx = self.LIM.zBin.transScale(self.LIM.Az)
+        Ly = self.LIM.zBin.transScale(self.LIM.El)
+        Lz = self.LIM.zBin.LoSmax()
+
+        kxs = k_xyzs[0][:, 0, 0]
+        kys = k_xyzs[1][0, :, 0]
+        kzs = k_xyzs[2][0, 0, :]
+        del k_xyzs
+
+        sigCoef = np.sqrt(8*np.log(2))
+        #TODO:this currently ignores contributions from the galaxy survey to transverse sigma.
+        sPar = dnu2dr(self.LIM.Instrument.dnu, self.LIM.EmissionLine.nu,
+                        self.LIM.zBin.zCenter) / sigCoef
+        sPerp = self.LIM.zBin.transScale(self.LIM.zBin.FWHM) / sigCoef
+        galPar  = self.GAL.specRatio *  sPar
+
+        #def erf_window(k, L):
+            # Damps modes with k <~ 2pi/L
+            #return scipy.special.erf(k * L / 2.0)
+
+        if self.window == 'Padmanabhan2023':
+            #print('Applying Padmanabhan 2023 windowing')
+            if auto:
+                LIMTransCoefs = np.einsum(
+                    'i,j,k->ijk',
+                    gaussian_window(kxs, sPerp) * erf_window(kxs, kzMin),
+                    gaussian_window(kys, sPerp) * erf_window(kys, kzMin),
+                    gaussian_window(kzs, sPar) * erf_window(kzs, kzMin) 
+                    )
+                return LIMTransCoefs
+            else:
+                transferCoefs = np.einsum(
+                    'i,j,k->ijk',
+                    (gaussian_window(kxs, sPerp) * erf_window(kxs, kzMin))**0.5,
+                    (gaussian_window(kys, sPerp) * erf_window(kys, kzMin))**0.5,
+                    (gaussian_window(kzs, sPar) * gaussian_window(kzs, galPar) * erf_window(kzs, kzMin))**0.5
+                    )
+                return transferCoefs
             
+        elif self.window == 'GaussianOnly':
+            #print('Applying Gaussian windowing')
+
+            #print(f"sPar: {sPar}, sPerp: {sPerp}, galPar: {galPar}")
+            if auto:
             #TODO: Generalize - this'll only work for the TIMxEu case or very similar.
-            self.LIMTransCoefs = np.einsum('i,j,k->ijk', 
-                    np.exp((-self.k_xyzs[0][:, 0, 0]**2 * sPerp**2 / 2).value), 
-                    np.exp((-self.k_xyzs[1][0, :, 0]**2 * sPerp**2 / 2).value), 
-                    np.exp((-self.k_xyzs[2][0, 0, :]**2 * (sPar**2) / 2).value))
+            
+                LIMTransCoefs = np.einsum('i,j,k->ijk', 
+                        gaussian_window(kxs, sPerp),
+                        gaussian_window(kys, sPerp),
+                        gaussian_window(kzs, sPar))
+                return LIMTransCoefs
+            else:
+                transferCoefs = np.einsum('i,j,k->ijk', 
+                    gaussian_window(kxs, sPerp)**0.5,
+                    gaussian_window(kys, sPerp)**0.5,
+                    (gaussian_window(kzs, sPar) * gaussian_window(kzs, galPar))**0.5
+                    )
+                return transferCoefs
+
+    def k_props(self):
+        k_xyzs = self.calculate_k_xyzs()
+        #k_xyzs = np.stack((kx, ky, kz))
+        k_mags, nModes = self.setup_k_modes()
+        return np.abs(k_xyzs / k_mags)
 
     def nMode_Effective(self, PmTuple, returnTransferAve = False, returnLIMTransferAve = False):
         #TODO: this doesn't cover the case that both return args = True. I should write that case.
-        
+        k_mags, nModes = self.setup_k_modes()
+        transferCoefs = self.setup_transfer_function(auto=False)
+        LIMTransCoefs = self.setup_transfer_function(auto=True)
+        kflat = k_mags.value.flatten()
+        wflat = transferCoefs.flatten()
         (kPms, Pm) = PmTuple
-        kbin_edges = np.append([0], np.sqrt(kPms * np.append(kPms[1:], [np.max(self.k_mags.value)])))
+        kbin_edges = np.append([0], np.sqrt(kPms * np.append(kPms[1:], [np.max(k_mags.value)])))
         
         # get bin edges by selecting the midway between each CAMB k prediction
         # use geometric mean because bins are log-spaced
 
-        #for j, (ks,ws) in enumerate(zip(self.k_mags, self.transferCoefs)):
-        kflat = self.k_mags.value.flatten()
-        wflat = self.transferCoefs.flatten()
-            #edges = kbin_edges[j]
         
         nEffs = []
         for i in np.arange(len(kbin_edges)-1):
@@ -780,12 +885,12 @@ class LIMxGAL():
 
         if returnTransferAve:
             #for fig 6 - transfer function averages per bin
-            transferAves = np.array([np.mean(self.transferCoefs[np.logical_and(self.k_mags.value < kbin_edges[i+1], self.k_mags.value >= kbin_edges[i])]) 
+            transferAves = np.array([np.mean(transferCoefs[np.logical_and(k_mags.value < kbin_edges[i+1], k_mags.value >= kbin_edges[i])]) 
                 for i in range(len(kbin_edges)-1)]) 
             return kbin_edges, np.asarray(nEffs), np.asarray(transferAves)
 
         elif returnLIMTransferAve:
-            LIMTransferAves = np.array([np.mean(self.LIMTransCoefs[np.logical_and(self.k_mags.value < kbin_edges[i+1], self.k_mags.value >= kbin_edges[i])]) 
+            LIMTransferAves = np.array([np.mean(LIMTransCoefs[np.logical_and(k_mags.value < kbin_edges[i+1], k_mags.value >= kbin_edges[i])]) 
                 for i in range(len(kbin_edges)-1)]) 
             return kbin_edges, np.asarray(nEffs), np.asarray(LIMTransferAves)
 
@@ -826,11 +931,13 @@ def nEffs_multi(survList, Pms): #TODO: make return transfer aves a kwarg.
     return kbin_edges_list, nEffs_list, transferAves_list
 
 def kSpecs_multi(surveys, returnVal = 'magnitude'):
+
     zShifts = [surv.LIM.zBin.zCenter for surv in surveys]
-    k_maxs = [surv.k_max.value for surv in surveys]
-    k_mins = [surv.k_min.value for surv in surveys]
-    k_mags = [surv.k_mags.value for surv in surveys]
-    num_kbins = [int(surv.num_kbins.value) for surv in surveys]
+    k_mags = [surv.setup_k_modes()[0] for surv in surveys]
+    num_kbins = [surv.setup_k_modes()[1] for surv in surveys]
+    k_mins = [np.min(k_mag[k_mag != 0]) for k_mag in k_mags]
+    k_maxs = [np.max(k_mag) for k_mag in k_mags]
+
     if returnVal == 'magnitude': return k_mags
     elif returnVal == 'maxima': return k_maxs
     elif returnVal == 'minima': return k_mins
@@ -842,11 +949,12 @@ def kSpecs_multi(surveys, returnVal = 'magnitude'):
         raise ValueError("Invalid returnVal specified.")
     
 def kSpecs_single(survey, returnVal = 'magnitude'):
+
     zShift = survey.LIM.zBin.zCenter
-    k_max = survey.k_max.value
-    k_min = survey.k_min.value
-    k_mag = survey.k_mags.value
-    num_kbin = int(survey.num_kbins.value)
+    k_mag, num_kbin  = survey.setup_k_modes()
+    k_min = np.min(k_mag[k_mag != 0])
+    k_max = np.max(k_mag)
+
     if returnVal == 'magnitude': return k_mag
     elif returnVal == 'maxima': return k_max
     elif returnVal == 'minima': return k_min
@@ -866,7 +974,8 @@ def CAMB_Pm_multi(k_mags, k_maxs, k_mins, num_kbins, zShifts, cosmology = cosmo)
     pars.set_for_lmax(2500, lens_potential_accuracy=0)
     pars.set_matter_power(redshifts=zShifts, kmax=kmax * 3, nonlinear=False) #TODO: Why is this * 3 ?
     results = camb.get_results(pars)
-    binned_results = [results.get_matter_power_spectrum(minkh=kmin, maxkh=np.max(km), npoints=nkb) \
+
+    binned_results = [results.get_matter_power_spectrum(minkh=kmin, maxkh=np.max(km.value), npoints=int(nkb.value)) \
         for kmin, km, nkb in zip(k_mins, k_mags, num_kbins)]
     z_idxs = [np.argmin(np.abs(zs - binz)) for (_, zs, _), binz in zip(binned_results, zShifts)]
     return [(ks, Pm[z_idx]) for (ks, _, Pm), z_idx in zip(binned_results, z_idxs)]
@@ -880,7 +989,7 @@ def CAMB_Pm_single(k_mag, k_max, k_min, num_kbin, zShift, cosmology = cosmo):
     pars.set_for_lmax(2500, lens_potential_accuracy=0)
     pars.set_matter_power(redshifts=zShift, kmax=kmax * 3, nonlinear=False) #TODO: Why is this * 3 ?
     results = camb.get_results(pars)
-    binned_results = results.get_matter_power_spectrum(minkh=k_min, maxkh=np.max(k_mag), npoints=num_kbin)
+    binned_results = results.get_matter_power_spectrum(minkh=k_min, maxkh=np.max(k_mag.value), npoints=int(num_kbin.value))
     #z_idx = np.argmin(np.abs(zShift - results.get_redshifts()))
     return (binned_results)#, z_idx)
 
