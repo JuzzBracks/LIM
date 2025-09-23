@@ -4,7 +4,7 @@
 # All rights reserved.
 
 import numpy as np
-from obj import cosmo
+from deprecated.obj import cosmo
 from astropy import constants as c, units as u
 from E_lines import CII
 

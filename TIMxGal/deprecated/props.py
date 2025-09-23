@@ -6,8 +6,8 @@
 # writing down survey properties
 
 from astropy import units as u, constants as c
-import utils
-from obj import AttrDict
+import deprecated.utils as utils
+from deprecated.obj import AttrDict
 from astropy.cosmology import Planck18 as cosmo
 import numpy as np
 

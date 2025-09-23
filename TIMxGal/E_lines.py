@@ -9,7 +9,7 @@
 
 
 from astropy import units as u, constants as c
-from obj import AttrDict
+from deprecated.obj import AttrDict
 import numpy as np
 
 CII = AttrDict()
